@@ -8,10 +8,15 @@ goog.require('goog.ui.ContainerRenderer');
  * {@link goog.ui.Container}, because we're probably not.
  * @constructor
  * @extends {goog.ui.ContainerRenderer}
+ * @borrows goog.ui.ControlRenderer.prototype#setAriaRole as this.setAriaRole
+ * @borrows goog.ui.ControlRenderer.prototype.setAllowTextSelection as this.setAllowTextSelection
  */
-com.qwirx.ui.Renderer = function()
+com.qwirx.ui.Renderer = function(opt_classes)
 {
-	goog.ui.ContainerRenderer.call(this);
+	goog.base(this);
+	var classes = opt_classes || [com.qwirx.ui.Renderer.CSS_CLASS];
+	goog.asserts.assertArray(classes);
+	this.classes_ = classes.slice(0);
 };
 goog.inherits(com.qwirx.ui.Renderer, goog.ui.ContainerRenderer);
 goog.addSingletonGetter(com.qwirx.ui.Renderer);
@@ -21,40 +26,22 @@ goog.addSingletonGetter(com.qwirx.ui.Renderer);
  * by this renderer.
  * @type {string}
  */
-com.qwirx.ui.Renderer.prototype.CSS_CLASS = goog.getCssName('com_qwirx_ui');
-
-/**
- * Returns the CSS class to be applied to the root element of containers
- * rendered using this renderer.
- * @return {string} Renderer-specific CSS class.
- */
-com.qwirx.ui.Renderer.prototype.getCssClass = function()
-{
-	return this.CSS_CLASS;
-};
+com.qwirx.ui.Renderer.CSS_CLASS = goog.getCssName('com_qwirx_ui');
 
 /**
  * Returns all CSS class names applicable to the given container, based on its
  * state.  The array of class names returned includes the renderer's own CSS
  * class, followed by a CSS class indicating the container's orientation,
  * followed by any state-specific CSS classes.
- * @param {goog.ui.Container} container Container whose CSS classes are to be
- *     returned.
  * @return {Array.<string>} Array of CSS class names applicable to the
  *     container.
  */
-com.qwirx.ui.Renderer.prototype.getClassNames = function(container)
+com.qwirx.ui.Renderer.prototype.getClassNames = function()
 {
-	var baseClass = this.getCssClass();
-	var classNames = [
-		baseClass,
-	];
-	// Not all components have an isEnabled() method.
-	/*
-	if (!container.isEnabled()) {
-		classNames.push(goog.getCssName(baseClass, 'disabled'));
-	}
-	*/
-	return classNames;
+	return this.classes_.slice(0);
 };
 
+com.qwirx.ui.Renderer.prototype.setAriaRole =
+	goog.ui.ControlRenderer.prototype.setAriaRole;
+com.qwirx.ui.Renderer.prototype.setAllowTextSelection =
+	goog.ui.ControlRenderer.prototype.setAllowTextSelection;
