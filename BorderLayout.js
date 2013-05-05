@@ -179,20 +179,17 @@ goog.ui.Component.prototype.forEachChildBySlot = function(f, opt_obj)
  */
 com.qwirx.ui.BorderLayout.prototype.enterDocument = function()
 {
-	com.qwirx.ui.BorderLayout.superClass_.enterDocument.call(this);
 	var elem = this.getElement();
 	elem.style.height = "100%";
 	elem.style.width = "100%";
 	
-	this.forEachChildBySlot(function(child, slot, index)
-		{
-			if (!child.isInDocument())
-				child.render(elem);
-		});
-			
+	// We must do a first pass layout, so that children have a sensible
+	// height when we call their enterDocument() methods.
+	this.handleResize();
+	
 	this.getHandler().listen(elem, goog.events.EventType.RESIZE,
 		this.handleResize);
-	this.handleResize();
+	goog.base(this, 'enterDocument');
 };
 
 /**

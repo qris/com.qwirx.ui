@@ -7,7 +7,8 @@ goog.require('com.qwirx.test.findDifferences');
 goog.require('goog.testing.jsunit');
 
 var domContainer = goog.dom.createDom(goog.dom.TagName.DIV,
-	{'style': 'background-color: #eee; width: 50%; float: right;'});
+	{'style': 'background-color: #eee; width: 50%; height: 300px; ' +
+	'float: right; opacity: 0.7;'});
 goog.dom.appendChild(document.body, domContainer);
 
 function setUp()
@@ -154,3 +155,52 @@ function test_add_children()
 		Array.prototype.slice.call(children, 0));
 }
 
+/**
+ * Child components should be expected to do work when enterDocument()
+ * is called, and they should know their size (roughly) at that point.
+ * It's not always possible to know their exact size, but they should have
+ * been given a non-zero size before BorderLayout calls their enterDocument
+ * method.
+ */
+function test_children_laid_out_before_enterDocument()
+{
+	com.qwirx.test.assertGreaterThan(domContainer.clientHeight, 0,
+		"domContainer must have a clientHeight, or this test cannot pass");
+	
+	var bl = new com.qwirx.ui.BorderLayout();
+
+	var child1 = new goog.ui.Control("I should fill the rest of the space");
+	var child2 = new goog.ui.Control("I should be at the bottom");
+	child1.addClassName("red-border");
+	child2.addClassName("blue-border");
+	
+	var enterDocumentCalled = false;
+	
+	child1.enterDocument = function()
+	{
+		var bs = goog.style.getBorderBoxSize(bl.getElement());
+		com.qwirx.test.assertGreaterThan(bs.height, 0,
+			"parent should have been given a height before " +
+			"enterDocument() is called");
+		var c1 = goog.style.getBorderBoxSize(child1.getElement());
+		com.qwirx.test.assertGreaterThan(c1.height, 0,
+			"child should have been given a height before " +
+			"enterDocument() is called");
+		var c2 = goog.style.getBorderBoxSize(child2.getElement());
+		com.qwirx.test.assertGreaterThan(c2.height, 0,
+			"child should have been given a height before " +
+			"enterDocument() is called");
+		assertEquals("children should have been given sizes adding up " +
+			"to the container size, before their enterDocument() methods " +
+			"are called", domContainer.clientHeight,
+			c1.height + c2.height);
+		enterDocumentCalled = true;
+		goog.base(this, 'enterDocument');
+	};
+	
+	bl.addChild(child1, true);
+	bl.addChild(child2, true, 'SOUTH');
+	bl.render(domContainer);
+	assertTrue("child enterDocument method should have been called",
+		enterDocumentCalled);
+}
