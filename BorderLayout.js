@@ -322,9 +322,22 @@ com.qwirx.ui.BorderLayout.prototype.moveAndSize_ =
  * ignoring it like the inherited createDom().
  * @override
  */
-com.qwirx.ui.BorderLayout.prototype.createDom = function() {
-  // Delegate to renderer.
-  this.setElementInternal(this.renderer_.createDom(this));
+com.qwirx.ui.BorderLayout.prototype.createDom = function()
+{
+	// Delegate to renderer.
+	this.setElementInternal(this.renderer_.createDom(this));
+	
+	var parent = this;
+	var parentNode = this.getElement();
+	
+	// Propagate enterDocument to child components that have a DOM, if any.
+	this.forEachChild(function(child)
+		{
+			// They can't have been rendered yet, because there was nothing
+			// to render them into; so do it now. Also this won't call
+			// enterDocument because parent_.isInDocument() == false.
+			child.render(parentNode);
+		});
 };
 
 goog.provide('com.qwirx.ui.BorderLayout.Renderer');

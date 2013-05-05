@@ -40,6 +40,16 @@ function test_render()
 		Array.prototype.slice.call(children, 0));
 }
 
+function test_createDom()
+{
+	var bl = new com.qwirx.ui.BorderLayout();
+	var child1 = new goog.ui.Control("<h1>Hello!</h1>");
+	bl.addChild(child1, false);
+	bl.createDom();
+	assertNotNull("child DOM element should have been created by " +
+		"calling createDom", child1.getElement());
+}
+
 function test_add_child_before_render()
 {
 	var bl = new com.qwirx.ui.BorderLayout();
@@ -48,13 +58,16 @@ function test_add_child_before_render()
 	assertObjectEquals([child1], bl.slots['CENTER']);
 	
 	bl.render(domContainer);
+	assertNotNull("child DOM element should have been created by " +
+		"calling createDom (indirectly via render())", child1.getElement());
 	
 	var children = goog.dom.getChildren(domContainer);
 	assertObjectEquals([bl.getElement()],
 		Array.prototype.slice.call(children, 0));
 	
 	children = goog.dom.getChildren(bl.getElement());
-	assertObjectEquals([child1.getElement()],
+	assertObjectEquals("the child's DOM element should have been added " +
+		"as a child of the parent's DOM element", [child1.getElement()],
 		Array.prototype.slice.call(children, 0));
 }
 
