@@ -241,21 +241,21 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 
 	if (slot == slotCodes.NORTH || slot == slotCodes.SOUTH)
 	{
-		childSize.width = remainingSpace.w;
-		if (childSize.height > remainingSpace.h)
+		childSize.width = remainingSpace.width;
+		if (childSize.height > remainingSpace.height)
 		{
-			childSize.height = remainingSpace.h;
+			childSize.height = remainingSpace.height;
 		}
-		remainingSpace.h -= childSize.height;
+		remainingSpace.height -= childSize.height;
 	}
 	else if (slot == slotCodes.EAST || slot == slotCodes.WEST)
 	{
-		if (childSize.width > remainingSpace.w)
+		if (childSize.width > remainingSpace.width)
 		{
-			childSize.width = remainingSpace.w;
+			childSize.width = remainingSpace.width;
 		}
-		childSize.height = remainingSpace.h;
-		remainingSpace.w -= childSize.width;
+		childSize.height = remainingSpace.height;
+		remainingSpace.width -= childSize.width;
 	}
 	
 	var childPos;
@@ -268,7 +268,7 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 	}
 	else if (slot == slotCodes.SOUTH)
 	{
-		childPos = new goog.math.Rect(0, remainingSpace.h,
+		childPos = new goog.math.Rect(0, remainingSpace.height,
 			childSize.width, childSize.height);
 	}
 	else if (slot == slotCodes.WEST)
@@ -278,7 +278,7 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 	}
 	else if (slot == slotCodes.EAST)
 	{
-		childPos = new goog.math.Rect(remainingSpace.w, 0,
+		childPos = new goog.math.Rect(remainingSpace.width, 0,
 			childSize.width, childSize.height);
 	}
 	else if (slot == slotCodes.CENTER)
