@@ -23,6 +23,7 @@ goog.provide('com.qwirx.ui.BorderLayout');
 
 goog.require('com.qwirx.util.Enum');
 goog.require('com.qwirx.util.Exception');
+goog.require('com.qwirx.ui.Renderer');
 goog.require('goog.events.EventType');
 goog.require('goog.ui.Component');
 goog.require('goog.style');
@@ -53,16 +54,14 @@ parent.addChild(child, opt_render || null, com.qwirx.ui.BorderLayout.CENTER);
  *     document interaction.
  * @param {goog.ui.ContainerRenderer=} opt_renderer Renderer used to
  *     render or decorate the textfield. Defaults to
- *     {@link com.qwirx.ui.BorderLayout.Renderer#getInstance}.
+ *     {@link com.qwirx.ui.BorderLayout.RENDERER}.
  * @constructor
  * @extends {goog.ui.Component}
  */
-com.qwirx.ui.BorderLayout = function(opt_domHelper,
-	opt_renderer)
+com.qwirx.ui.BorderLayout = function(opt_domHelper, opt_renderer)
 {
 	goog.ui.Component.call(this, opt_domHelper);
-	this.renderer_ = opt_renderer ||
-		com.qwirx.ui.BorderLayout.Renderer.getInstance();
+	this.renderer_ = opt_renderer || com.qwirx.ui.BorderLayout.RENDERER;
 	
 	this.slots = {};
 	var slotNames = com.qwirx.ui.BorderLayout.Constraints;
@@ -119,6 +118,12 @@ com.qwirx.ui.BorderLayout.prototype.addChildAt = function(child,
 	index, opt_render, opt_slot)
 {
 	var slot = opt_slot || com.qwirx.ui.BorderLayout.Constraint.CENTER;
+	
+	goog.asserts.assert(
+		goog.array.contains(com.qwirx.ui.BorderLayout.Constraints, slot),
+		"the slot value must be one of " + com.qwirx.ui.BorderLayout.Constraints +
+		", not " + slot);
+	
 	if (slot == com.qwirx.ui.BorderLayout.Constraint.CENTER &&
 		this.slots[slot].length > 0)
 	{
@@ -179,15 +184,11 @@ goog.ui.Component.prototype.forEachChildBySlot = function(f, opt_obj)
  */
 com.qwirx.ui.BorderLayout.prototype.enterDocument = function()
 {
-	var elem = this.getElement();
-	elem.style.height = "100%";
-	elem.style.width = "100%";
-	
 	// We must do a first pass layout, so that children have a sensible
 	// height when we call their enterDocument() methods.
 	this.handleResize();
 	
-	this.getHandler().listen(elem, goog.events.EventType.RESIZE,
+	this.getHandler().listen(this.getElement(), goog.events.EventType.RESIZE,
 		this.handleResize);
 	goog.base(this, 'enterDocument');
 };
@@ -206,14 +207,39 @@ com.qwirx.ui.BorderLayout.prototype.setSize = function(size)
 com.qwirx.ui.BorderLayout.prototype.handleResize = function(event)
 {
 	var elem = this.getElement();
-	var mySize = goog.style.getBorderBoxSize(elem);
-	var remainingSpace = new goog.math.Rect(0, 0, mySize.width,
-		mySize.height);
+	// var remainingSpace = this.getBoundingClientRect(elem);
+	var elemSize = goog.style.getSize(elem);
+	var remainingSpace = new goog.math.Rect(0, 0, elemSize.width,
+		elemSize.height);
 
 	this.forEachChildBySlot(function(child, slot, index)
 		{
 			this.placeChild(child, slot, remainingSpace);
 		});
+};
+
+/**
+ * There are cross-browser incompatibilities in
+ * DOMElement.getBoundingClientRect(), such as some browsers returning
+ * width and height elements and some not, and IE returning values offset
+ * by two pixels. Here we patch the first of these.
+ * <p>
+ * Some day we could correct for IE's 2px offset by copying or using
+ * <code>goog.style.getBoundingClientRect_</code> which is currently private.
+ * <p>
+ * We don't actually care for the right and bottom values at all, only the
+ * width and height, so we delete them to avoid confusion/ambiguity.
+ * 
+ * @param {Element} elem The element to measure
+ * @return {goog.math.Rect} The position and size of the element in
+ * document (client) coordinate space.
+ */
+com.qwirx.ui.BorderLayout.prototype.getBoundingClientRect = function(elem)
+{
+	var box = elem.getBoundingClientRect();
+	return new goog.math.Rect(box.left, box.top,
+		box.width  || (box.right - box.left),
+		box.height || (box.bottom - box.top));
 };
 
 /**
@@ -233,6 +259,7 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 	var elem = child.getElement();
 	// var minHeight = goog.style.getComputedStyle(elem, 'minHeight');
 	// var minWidth = goog.style.getComputedStyle(elem, 'minWidth');
+	// var childSize = this.getBoundingClientRect(elem);
 	var childSize = goog.style.getBorderBoxSize(elem);
 	var slotCodes = com.qwirx.ui.BorderLayout.Constraint;
 
@@ -259,28 +286,34 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 	
 	if (slot == slotCodes.NORTH)
 	{
-		childPos = new goog.math.Rect(0, 0, childSize.width,
-			childSize.height);
-		remainingSize.y += childSize.height;
+		childPos = new goog.math.Rect(remainingSpace.left, remainingSpace.top,
+			childSize.width, childSize.height);
+		remainingSpace.top += childSize.height;
 	}
 	else if (slot == slotCodes.SOUTH)
 	{
-		childPos = new goog.math.Rect(0, remainingSpace.height,
+		childPos = new goog.math.Rect(remainingSpace.left,
+			remainingSpace.top + remainingSpace.height
+			/* already adjusted for childSize.height */,
 			childSize.width, childSize.height);
 	}
 	else if (slot == slotCodes.WEST)
 	{
-		childPos = new goog.math.Rect(0, 0, childSize.width,
-			childSize.height);
+		childPos = new goog.math.Rect(remainingSpace.left, remainingSpace.top,
+			childSize.width, childSize.height);
+		remainingSpace.left += childSize.width;
 	}
 	else if (slot == slotCodes.EAST)
 	{
-		childPos = new goog.math.Rect(remainingSpace.width, 0,
+		childPos = new goog.math.Rect(
+			remainingSpace.left + remainingSpace.width
+			/* already adjusted for childSize.width */, remainingSpace.top,
 			childSize.width, childSize.height);
 	}
 	else if (slot == slotCodes.CENTER)
 	{
 		childPos = remainingSpace;
+			
 	}
 	else
 	{
@@ -298,15 +331,17 @@ com.qwirx.ui.BorderLayout.prototype.placeChild = function(child,
 
 /**
  * Move and resize a container.  The sizing changes the BorderBoxSize.
- * Copied from {@link goog.ui.SplitPane.prototype#moveAndSize_}.
+ * Based on {@link goog.ui.SplitPane.prototype#moveAndSize_}. but adjusted
+ * to use {@link goog.style.setPageOffset}, which appears to use client
+ * coordinate space just as <code>getBoundingClientRect</code> does.
  *
  * @param {Element} element The element to move and size.
  * @param {goog.math.Rect} rect The top, left, width and height to change to.
  * @private
  */
-com.qwirx.ui.BorderLayout.prototype.moveAndSize_ =
-	function(element, rect)
+com.qwirx.ui.BorderLayout.prototype.moveAndSize_ = function(element, rect)
 {
+	element.style.position = 'absolute';
 	goog.style.setPosition(element, rect.left, rect.top);
 	// TODO(user): Add a goog.math.Size.max call for below.
 	var newSize = new goog.math.Size(Math.max(rect.width, 0),
@@ -327,7 +362,13 @@ com.qwirx.ui.BorderLayout.prototype.createDom = function()
 	var parent = this;
 	var parentNode = this.getElement();
 	
-	// Propagate enterDocument to child components that have a DOM, if any.
+	var elem = this.getElement();
+	elem.style.height = "100%";
+	elem.style.width = "100%";
+	elem.style.position = 'relative';
+	
+	// Create DOM for each child components that is already added to the
+	// BorderLayout, and render them into the parent element.
 	this.forEachChild(function(child)
 		{
 			// They can't have been rendered yet, because there was nothing
@@ -337,28 +378,4 @@ com.qwirx.ui.BorderLayout.prototype.createDom = function()
 		});
 };
 
-goog.provide('com.qwirx.ui.BorderLayout.Renderer');
-goog.require('com.qwirx.ui.Renderer');
-
-/**
- * Renderer for {@link com.qwirx.ui.BorderLayout}s. Renders and decorates
- * com.qwirx.ui.BorderLayout, which by default is just a DIV element
- * with a special class <code>com-qwirx-ui-BorderLayout</code>.
- * @constructor
- * @extends {goog.ui.ContainerRenderer}
- */
-com.qwirx.ui.BorderLayout.Renderer = function()
-{
-	goog.base(this);
-};
-goog.inherits(com.qwirx.ui.BorderLayout.Renderer, com.qwirx.ui.Renderer);
-goog.addSingletonGetter(com.qwirx.ui.BorderLayout.Renderer);
-
-/**
- * Default CSS class to be applied to the root element of containers
- * rendered using this renderer.
- * @type {string}
- */
-com.qwirx.ui.BorderLayout.Renderer.prototype.CSS_CLASS =
-	goog.getCssName('com_qwirx_ui_BorderLayout');
-
+com.qwirx.ui.BorderLayout.RENDERER = new com.qwirx.ui.Renderer(['com_qwirx_ui_BorderLayout']);

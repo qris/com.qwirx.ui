@@ -45,3 +45,16 @@ com.qwirx.ui.Renderer.prototype.setAriaRole =
 	goog.ui.ControlRenderer.prototype.setAriaRole;
 com.qwirx.ui.Renderer.prototype.setAllowTextSelection =
 	goog.ui.ControlRenderer.prototype.setAllowTextSelection;
+
+/**
+ * Updates the control's DOM by adding or removing the specified extra class
+ * name to/from its element.
+ * @param {goog.ui.Control} control Control to be updated.
+ * @param {string} className CSS class name to add or remove.
+ * @param {boolean} enable Whether to add or remove the class name.
+ */
+com.qwirx.ui.Renderer.prototype.enableExtraClassName =
+	goog.ui.ControlRenderer.prototype.enableExtraClassName;
+
+com.qwirx.ui.Renderer.prototype.enableClassName =
+	goog.ui.ControlRenderer.prototype.enableClassName;
