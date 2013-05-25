@@ -299,3 +299,25 @@ function test_add_children_updates_layout()
 	assertChildShapes(bl, 0.15, 0.83, 0.4, 0.78);
 
 }
+
+function test_construct_flexbox()
+{
+	var fakeElem = {style: {}};
+	var flex = new com.qwirx.ui.Flexbox(fakeElem);
+	assertFalse("Flexbox should not be enabled if DOM elements have no " +
+		"trace of box-flex styles", flex.isEnabled());
+	assertEquals("Display property should be set appropriately",
+		'flex', flex.getDisplay());
+	
+	fakeElem.style = {webkitBoxFlex: undefined};
+	flex = new com.qwirx.ui.Flexbox(fakeElem);
+	assertTrue("Flexbox should be enabled if DOM elements have " +
+		"a webkit-box-flex style, even if its value is undefined",
+		flex.isEnabled());
+	assertEquals("Flexbox prefix should be set appropriately for Webkit " +
+		"browsers", 'webkitBox', flex.getBoxPrefixJs());
+	assertEquals("Flexbox prefix should be set appropriately for Webkit " +
+		"browsers", '-webkit-box-', flex.getBoxPrefixCss());
+	assertEquals("Display property should be set appropriately",
+		'-webkit-box', flex.getDisplay());
+};
