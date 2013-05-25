@@ -58,3 +58,81 @@ com.qwirx.ui.Renderer.prototype.enableExtraClassName =
 
 com.qwirx.ui.Renderer.prototype.enableClassName =
 	goog.ui.ControlRenderer.prototype.enableClassName;
+
+/**
+ * Takes a single {@link goog.ui.Component.State}, and returns the
+ * corresponding CSS class name (null if none).
+ * @param {goog.ui.Component.State} state Component state.
+ * @return {string|undefined} CSS class representing the given state (undefined
+ *     if none).
+ * @protected
+ */
+com.qwirx.ui.Renderer.prototype.getClassForState = 
+	goog.ui.ControlRenderer.prototype.getClassForState;
+
+/**
+ * Updates the appearance of the control in response to a state change.
+ * @param {goog.ui.Control} control Control instance to update.
+ * @param {goog.ui.Component.State} state State to enable or disable.
+ * @param {boolean} enable Whether the control is entering or exiting the state.
+ */
+com.qwirx.ui.Renderer.prototype.setState =
+	goog.ui.ControlRenderer.prototype.setState;
+
+/**
+ * Creates the lookup table of states to classes, used during state changes.
+ * @private
+ */
+com.qwirx.ui.Renderer.prototype.createClassByStateMap_ =
+	goog.ui.ControlRenderer.prototype.createClassByStateMap_;
+
+/**
+ * Returns the name of a DOM structure-specific CSS class to be applied to the
+ * root element of all components rendered or decorated using this renderer.
+ * Unlike the class name returned by {@link #getCssClass}, the structural class
+ * name may be shared among different renderers that generate similar DOM
+ * structures.  The structural class name also serves as the basis of derived
+ * class names used to identify and style structural elements of the control's
+ * DOM, as well as the basis for state-specific class names.  The default
+ * implementation returns the same class name as {@link #getCssClass}, but
+ * subclasses are expected to override this method as needed.
+ * @return {string} DOM structure-specific CSS class name (same as the renderer-
+ *     specific CSS class name by default).
+ */
+com.qwirx.ui.Renderer.prototype.getStructuralCssClass = function()
+{
+	return this.classes_[0];
+};
+
+com.qwirx.ui.Renderer.prototype.updateAriaState =
+	goog.ui.ControlRenderer.prototype.updateAriaState;
+
+/**
+ * Returns true if the control's key event target supports keyboard focus
+ * (based on its {@code tabIndex} attribute), false otherwise.
+ * @param {goog.ui.Control} control Control whose key event target is to be
+ *     checked.
+ * @return {boolean} Whether the control's key event target is focusable.
+ */
+com.qwirx.ui.Renderer.prototype.isFocusable =
+	goog.ui.ControlRenderer.prototype.isFocusable;
+
+/**
+ * Shows or hides the element.
+ * @param {Element} element Element to update.
+ * @param {boolean} visible Whether to show the element.
+ */
+com.qwirx.ui.Renderer.prototype.setVisible =
+	goog.ui.ControlRenderer.prototype.setVisible;
+
+/**
+ * Updates the control's key event target to make it focusable or non-focusable
+ * via its {@code tabIndex} attribute.  Does nothing if the control doesn't
+ * support the {@code FOCUSED} state, or if it has no key event target.
+ * @param {goog.ui.Control} control Control whose key event target is to be
+ *     updated.
+ * @param {boolean} focusable Whether to enable keyboard focus support on the
+ *     control's key event target.
+ */
+com.qwirx.ui.Renderer.prototype.setFocusable =
+	goog.ui.ControlRenderer.prototype.setFocusable;
