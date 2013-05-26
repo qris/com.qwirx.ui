@@ -27,6 +27,7 @@ goog.require('com.qwirx.ui.Renderer');
 goog.require('goog.events.EventType');
 goog.require('goog.ui.Component');
 goog.require('goog.style');
+// goog.require('Object.watch');
 
 /**
  * A Javascript clone of the Java
@@ -70,6 +71,8 @@ com.qwirx.ui.BorderLayout = function(opt_domHelper, opt_renderer)
 	{
 		this.slots[slotNames[i]] = [];
 	}
+	
+	this.resizeListeners = {};
 };
 goog.inherits(com.qwirx.ui.BorderLayout, goog.ui.Component);
 
@@ -144,6 +147,11 @@ com.qwirx.ui.BorderLayout.prototype.addChildAt = function(child,
 		child, index, opt_render);
 
 	this.slots[slot].push(child);
+	
+	if (child.isInDocument())
+	{
+		this.addResizeListener(child);
+	}
 };
 
 /**
@@ -366,16 +374,60 @@ com.qwirx.ui.BorderLayout.prototype.createDom = function()
 	elem.style.height = "100%";
 	elem.style.width = "100%";
 	elem.style.position = 'relative';
+};
+
+com.qwirx.ui.BorderLayout.prototype.addResizeListener = function(child)
+{
+	var elem = child.getElement();
+	var uid = goog.getUid(elem);
+	if (uid in this.resizeListeners) return;
 	
-	// Create DOM for each child components that is already added to the
-	// BorderLayout, and render them into the parent element.
-	this.forEachChild(function(child)
+	this.resizeListeners[uid] = goog.events.listen(elem,
+		goog.events.EventType.RESIZE,
+		function(event)
 		{
-			// They can't have been rendered yet, because there was nothing
-			// to render them into; so do it now. Also this won't call
-			// enterDocument because parent_.isInDocument() == false.
-			child.render(parentNode);
+			this.handleResize();
+		}, false, this);
+	
+	/*
+	elem.watch("clientHeight",
+		function (id, oldValue, newValue)
+		{
+			this.handleResize();
 		});
+	
+	var self = this;
+	function handler(event)
+	{
+		self.handleResize();
+	}
+	
+	elem.addEventListener("DOMAttrModified", handler, false);
+	
+	var obsClass = null;
+	
+	if ('MutationObserver' in window)
+	{
+		obsClass = MutationObserver;
+	}
+	
+	if ('WebKitMutationObserver' in window)
+	{
+		obsClass = WebKitMutationObserver;
+	}
+	
+	if (obsClass)
+	{
+		// https://developer.mozilla.org/en-US/docs/DOM/MutationObserver#Example_usage
+		var observer = new obsClass(
+			function(mutations)
+			{
+				self.handleResize();
+			});
+		var config = { attributes: true, childList: false, characterData: false };
+		observer.observe(elem, config);
+	}
+	*/
 };
 
 com.qwirx.ui.BorderLayout.RENDERER = new com.qwirx.ui.Renderer(['com_qwirx_ui_BorderLayout']);
