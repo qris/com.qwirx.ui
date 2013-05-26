@@ -23,6 +23,7 @@ goog.provide('com.qwirx.ui.BorderLayout');
 
 goog.require('com.qwirx.util.Enum');
 goog.require('com.qwirx.util.Exception');
+goog.require('com.qwirx.ui.Flexbox');
 goog.require('com.qwirx.ui.Renderer');
 goog.require('goog.events.EventType');
 goog.require('goog.ui.Component');
@@ -144,8 +145,27 @@ com.qwirx.ui.BorderLayout.prototype.addChildAt = function(child,
 	}
 	
 	com.qwirx.ui.BorderLayout.superClass_.addChildAt.call(this,
-		child, index, opt_render);
-
+		child, index, false /* opt_render; we will render it ourselves */);
+	
+	if (opt_render)
+	{
+		if (!this.getElement())
+		{
+			this.createDom();
+		}
+		
+		if (this.flexbox.isEnabled())
+		{
+			this.addChildToFlexDom(child, slot);
+		}
+		else
+		{
+			this.child.render(this.compass[slot]);
+			var elem = child.getElement();
+			if (elem) this.renderer_.applyStyle(elem, slot, true, this.flexbox);
+		}
+	}
+	
 	this.slots[slot].push(child);
 	
 	if (child.isInDocument())
@@ -214,6 +234,13 @@ com.qwirx.ui.BorderLayout.prototype.setSize = function(size)
 
 com.qwirx.ui.BorderLayout.prototype.handleResize = function(event)
 {
+	if (this.flexbox.isEnabled())
+	{
+		// The browser should have done it for us, so we don't need to
+		// do anything here.
+		return;
+	}
+
 	var elem = this.getElement();
 	// var remainingSpace = this.getBoundingClientRect(elem);
 	var elemSize = goog.style.getSize(elem);
@@ -357,6 +384,40 @@ com.qwirx.ui.BorderLayout.prototype.moveAndSize_ = function(element, rect)
 	goog.style.setBorderBoxSize(element, newSize);
 };
 
+com.qwirx.ui.BorderLayout.prototype.addChildToFlexDom = function(child, slot)
+{
+	var slotContainer = this.compass[slot];
+	child.renderBefore(slotContainer);
+	this.renderer_.applyStyle(child.getElement(), slot, true, this.flexbox);
+};
+
+/**
+ * Creates the container's DOM children for a browser that supports the
+ * CSS3 flexbox standard. This should only ever be called once, as it
+ * renders any existing children into the relevant DOM children for 
+ * flexbox, which is a bad idea if they've already been rendered elsewhere.
+ * @override
+ */
+com.qwirx.ui.BorderLayout.prototype.createFlexboxDom = function()
+{
+	var elem = this.getElement();
+	this.renderer_.applyStyle(elem, 'parent', false, this.flexbox)
+	
+	this.compass = this.renderer_.createCompassElements(this);
+	elem.appendChild(this.compass.NORTH);
+	elem.appendChild(this.compass.middle);
+	this.compass.middle.appendChild(this.compass.WEST);
+	this.compass.middle.appendChild(this.compass.CENTER);
+	this.compass.middle.appendChild(this.compass.EAST);
+	elem.appendChild(this.compass.SOUTH);
+	
+	this.forEachChildBySlot(
+		function(child, slot, index)
+		{
+			this.addChildToFlexDom(child, slot);
+		});
+};
+
 /**
  * Creates the container's DOM using the renderer, instead of
  * ignoring it like the inherited createDom().
@@ -366,15 +427,72 @@ com.qwirx.ui.BorderLayout.prototype.createDom = function()
 {
 	// Delegate to renderer.
 	this.setElementInternal(this.renderer_.createDom(this));
+	this.flexbox = new com.qwirx.ui.Flexbox(this.getElement());
 	
 	var parent = this;
-	var parentNode = this.getElement();
 	
 	var elem = this.getElement();
 	elem.style.height = "100%";
 	elem.style.width = "100%";
 	elem.style.position = 'relative';
+	var parentNode = elem;
+	
+	if (this.flexbox.isEnabled())
+	{
+		this.createFlexboxDom();
+	}
+	else
+	{
+		// Create DOM for each child components that is already added to the
+		// BorderLayout, and render them into the parent element.
+		this.forEachChild(
+			function(child)
+			{
+				// They can't have been rendered yet, because there was nothing
+				// to render them into; so do it now. Also this won't call
+				// enterDocument because parent_.isInDocument() == false.
+				child.render(parentNode);
+				this.addResizeListener(child);
+			});
+	}
 };
+
+// http://engineering.silkapp.com/post/31921750832/mutation-events-what-happens?
+/*
+var attrModifiedWorks = false;
+var listener = function(){ attrModifiedWorks = true; };
+document.documentElement.addEventListener("DOMAttrModified", listener, false);
+document.documentElement.setAttribute("___TEST___", true);
+document.documentElement.removeAttribute("___TEST___", true);
+document.documentElement.removeEventListener("DOMAttrModified", listener, false);
+
+if (!attrModifiedWorks) 
+{
+	var oldSetAttribute = HTMLElement.prototype.setAttribute;
+
+	HTMLElement.prototype.setAttribute = function(attrName, newVal)
+	{
+		var prevVal = this.getAttribute(attrName);
+		oldSetAttribute.call(this, attrName, newVal);
+		newVal = this.getAttribute(attrName);
+		if (newVal != prevVal)
+		{
+			var evt = document.createEvent("MutationEvent");
+			evt.initMutationEvent(
+				"DOMAttrModified",
+				true,
+				false,
+				this,
+				prevVal || "",
+				newVal || "",
+				attrName,
+				(prevVal == null) ? evt.ADDITION : evt.MODIFICATION
+			);
+			this.dispatchEvent(evt);
+		}
+	}
+}
+*/
 
 com.qwirx.ui.BorderLayout.prototype.addResizeListener = function(child)
 {
@@ -430,4 +548,103 @@ com.qwirx.ui.BorderLayout.prototype.addResizeListener = function(child)
 	*/
 };
 
-com.qwirx.ui.BorderLayout.RENDERER = new com.qwirx.ui.Renderer(['com_qwirx_ui_BorderLayout']);
+com.qwirx.ui.BorderLayout.prototype.getContentElement = function() {
+  return this.currentContentElement_;
+};
+
+/**
+ * Subclass our standard Renderer to make it create the left, right,
+ * top, bottom and centre elements, so that subclasses can override how
+ * these elements are styled.
+ * 
+ * @param {Array} classes The list of CSS classes to be applied to the
+ *   BorderLayout container element.
+ * @param {string=} opt_compass_class The CSS class to be applied to all
+ *   sub-container elements for compass positions (slots). If not supplied,
+ *   defaults to <code>com_qwirx_ui_BorderLayout_DefaultRenderer</code>.
+ */
+com.qwirx.ui.BorderLayout.DefaultRenderer = function(classes,
+	opt_compass_class)
+{
+	goog.base(this, classes);
+	this.compass_class = opt_compass_class ||
+		'com_qwirx_ui_BorderLayout_DefaultRenderer';
+};
+
+goog.inherits(com.qwirx.ui.BorderLayout.DefaultRenderer,
+	com.qwirx.ui.Renderer);
+
+com.qwirx.ui.BorderLayout.DefaultRenderer.prototype.applyStyle =
+	function(elem, slot, real_child, flexbox)
+{
+	var browserPrefix = flexbox.getBoxPrefixJs();
+	var displayBox = flexbox.getDisplay();
+	var slots = com.qwirx.ui.BorderLayout.Constraint;
+	
+	if (slot == 'parent')
+	{
+		elem.style[browserPrefix + "Orient"] = "vertical";
+	}
+
+	if (slot == 'parent' || slot == 'middle')
+	{
+		elem.style.display = displayBox;
+	}
+	
+	if (slot == 'middle' || (slot == slots.CENTER && real_child))
+	{
+		elem.style[browserPrefix + "Flex"] = 1;
+	}
+	
+	if (real_child)
+	{
+		elem.style.boxSizing = "border-box";
+	}
+	
+	if (real_child && slot == slots.CENTER)
+	{
+		/*
+		elem.style.position = 'absolute';
+		elem.style.width = '100%';
+		elem.style.height = '100%';
+		*/
+	}
+	else if (slot == 'middle')
+	{
+		elem.style.position = 'relative';
+	}		
+};
+
+com.qwirx.ui.BorderLayout.DefaultRenderer.prototype.createCompassElement =
+	function(component, slot, opt_classNames)
+{
+	var classNames = opt_classNames || ['com_qwirx_ui_BorderLayout'];
+	classNames = classNames.slice(0);
+	classNames.push(slot);
+	var elem = component.getDomHelper().createDom('div', classNames.join(' '));
+	this.applyStyle(elem, slot, false, component.flexbox);
+	return elem;
+};
+
+com.qwirx.ui.BorderLayout.DefaultRenderer.prototype.createCompassElements =
+	function(component)
+{
+	var compass_classes = [this.compass_class];
+	var slots = com.qwirx.ui.BorderLayout.Constraint;
+	var elements = {}
+	elements[slots.NORTH] = this.createCompassElement(component, slots.NORTH,
+		compass_classes);
+	elements.middle = this.createCompassElement(component, 'middle',
+		compass_classes);
+	elements[slots.SOUTH] = this.createCompassElement(component, slots.SOUTH,
+		compass_classes);
+	elements[slots.WEST] = this.createCompassElement(component, slots.WEST,
+		compass_classes);
+	elements[slots.CENTER] = this.createCompassElement(component, slots.CENTER,
+		compass_classes);
+	elements[slots.EAST] = this.createCompassElement(component, slots.EAST,
+		compass_classes);
+	return elements;
+};
+
+com.qwirx.ui.BorderLayout.RENDERER = new com.qwirx.ui.BorderLayout.DefaultRenderer(['com_qwirx_ui_BorderLayout']);

@@ -56,6 +56,23 @@ function test_createDom()
 		"100%", elem.style.width);
 }
 
+function assert_one_child_in_center(bl, child)
+{
+	if (bl.flexbox.isEnabled())
+	{
+		com.qwirx.test.assertArrayEquals([bl.compass.NORTH, bl.compass.middle,
+			bl.compass.SOUTH], goog.dom.getChildren(bl.getElement()));
+		com.qwirx.test.assertArrayEquals([bl.compass.WEST, child.getElement(),
+			bl.compass.CENTER, bl.compass.EAST],
+			goog.dom.getChildren(bl.compass.middle));
+	}
+	else
+	{
+		com.qwirx.test.assertArrayEquals([child.getElement()],
+			goog.dom.getChildren(bl.getElement()));
+	}
+}
+
 function test_add_child_before_render()
 {
 	var bl = new com.qwirx.ui.BorderLayout();
@@ -67,14 +84,7 @@ function test_add_child_before_render()
 	assertNotNull("child DOM element should have been created by " +
 		"calling createDom (indirectly via render())", child1.getElement());
 	
-	var children = goog.dom.getChildren(domContainer);
-	assertObjectEquals([bl.getElement()],
-		Array.prototype.slice.call(children, 0));
-	
-	children = goog.dom.getChildren(bl.getElement());
-	assertObjectEquals("the child's DOM element should have been added " +
-		"as a child of the parent's DOM element", [child1.getElement()],
-		Array.prototype.slice.call(children, 0));
+	assert_one_child_in_center(bl, child1);
 }
 
 function test_add_child_after_render()
@@ -90,9 +100,7 @@ function test_add_child_after_render()
 	bl.addChild(child1, true);
 	assertObjectEquals([child1], bl.slots['CENTER']);
 	
-	children = goog.dom.getChildren(bl.getElement());
-	assertObjectEquals([child1.getElement()],
-		Array.prototype.slice.call(children, 0));
+	assert_one_child_in_center(bl, child1);
 }
 
 function test_add_multiple_children_to_center_slot()
@@ -152,13 +160,72 @@ function test_add_children()
 
 	bl.render(domContainer);
 	
-	var children = goog.dom.getChildren(domContainer);
-	assertObjectEquals([bl.getElement()],
-		Array.prototype.slice.call(children, 0));
+	com.qwirx.test.assertArrayEquals([bl.getElement()],
+		goog.dom.getChildren(domContainer));
 	
-	children = goog.dom.getChildren(bl.getElement());
-	assertObjectEquals([child1.getElement(), child2.getElement()],
-		Array.prototype.slice.call(children, 0));
+	if (bl.flexbox.isEnabled())
+	{
+		com.qwirx.test.assertArrayEquals([bl.compass.NORTH, bl.compass.middle,
+			child2.getElement(), bl.compass.SOUTH],
+			goog.dom.getChildren(bl.getElement()));
+		com.qwirx.test.assertArrayEquals([bl.compass.WEST, child1.getElement(),
+			bl.compass.CENTER, bl.compass.EAST],
+			goog.dom.getChildren(bl.compass.middle));
+		
+		var browserPrefix = bl.flexbox.getBoxPrefixJs();
+		assertContains(browserPrefix, ['webkitBox']);
+		var displayBox = bl.flexbox.getDisplay();
+		assertContains(displayBox, ['-webkit-box']);
+		
+		var expected = {
+			// display, boxOrient, boxFlex
+			parent: [displayBox, 'vertical', ''],
+			NORTH:  ['',         '',         ''],
+			middle: [displayBox, '',         '1'],
+			SOUTH:  ['',         '',         ''],
+			WEST:   ['',         '',         ''],
+			CENTER_placeholder: ['',         '',         ''],
+			CENTER_real: ['',         '',         '1'],
+			EAST:   ['',         '',         ''],
+		};
+		
+		function assertChildStyles(child, slot, placeholder)
+		{
+			var values;
+			var suffix = placeholder ? "_placeholder" : "_real";
+			
+			if (slot + suffix in expected)
+			{
+				values = expected[slot+suffix];
+			}
+			else
+			{
+				values = expected[slot];
+			}
+			
+			assertEquals("wrong value for "+slot+" element's display property",
+				values[0], child.style.display);
+			assertEquals("wrong value for "+slot+" element's boxOrient property",
+				values[1], child.style[browserPrefix + "Orient"]);
+			assertEquals("wrong value for "+slot+" element's boxFlex property",
+				values[2], child.style[browserPrefix + "Flex"]);
+		}
+		
+		goog.object.forEach(com.qwirx.ui.BorderLayout.Constraints,
+			function(slot, i)
+			{
+				assertChildStyles(bl.compass[slot], slot, true /* placeholder */);
+			});
+		assertChildStyles(bl.getElement(), 'parent', false /* placeholder */);
+		assertChildStyles(child1.getElement(), 'CENTER', false /* placeholder */);
+		assertChildStyles(child2.getElement(), 'SOUTH', false /* placeholder */);
+	}
+	else
+	{
+		com.qwirx.test.assertArrayEquals(
+			[child1.getElement(), child2.getElement()],
+			goog.dom.getChildren(bl.getElement()));
+	}
 }
 
 /**
@@ -267,7 +334,7 @@ function test_add_children_updates_layout()
 	centre.addClassName("red-border");
 	bl.addChild(centre, true, com.qwirx.ui.BorderLayout.Constraint.CENTER);
 	var cs = centre.getElement().getBoundingClientRect();
-	assertObjectEquals(bs, 	cs);
+	assertObjectEquals("wrong size for centre element", bs, cs);
 	assertChildShapes(bl, 0, 1, 0, 1);
 	
 	var west = new goog.ui.Control("<h1>West!</h1>");
@@ -297,7 +364,30 @@ function test_add_children_updates_layout()
 	north.getElement().style.height = "40%";
 	bl.addChild(north, true, com.qwirx.ui.BorderLayout.Constraint.NORTH);
 	assertChildShapes(bl, 0.15, 0.83, 0.4, 0.78);
+}
 
+function test_resize_child_updates_layout()
+{
+	var bl = new com.qwirx.ui.BorderLayout();
+	bl.render(domContainer);
+	var bs = domContainer.getBoundingClientRect();
+	
+	var centre = new goog.ui.Control("I should fill the rest of the space");
+	centre.addClassName("red-border");
+	bl.addChild(centre, true, com.qwirx.ui.BorderLayout.Constraint.CENTER);
+	var cs = centre.getElement().getBoundingClientRect();
+	assertObjectEquals(bs, 	cs);
+	assertChildShapes(bl, 0, 1, 0, 1);
+	
+	var south = new goog.ui.Control("<h1>South!</h1>");
+	south.addClassName("blue-border");
+	south.createDom();
+	south.getElement().style.height = "22%";
+	bl.addChild(south, true, com.qwirx.ui.BorderLayout.Constraint.SOUTH);
+	assertChildShapes(bl, 0, 1, 0, 0.78);
+	
+	south.getElement().style.height = "18%";
+	assertChildShapes(bl, 0, 1, 0, 0.82);
 }
 
 function test_construct_flexbox()
