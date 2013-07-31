@@ -118,6 +118,15 @@ com.qwirx.ui.Renderer.prototype.isFocusable =
 	goog.ui.ControlRenderer.prototype.isFocusable;
 
 /**
+ * @return {boolean} true if the element is shown (by a call to setVisible())
+ * or false if not.
+ */
+com.qwirx.ui.Renderer.prototype.isVisible = function(element)
+{
+	return goog.style.isElementShown(element);
+};
+
+/**
  * Shows or hides the element.
  * @param {Element} element Element to update.
  * @param {boolean} visible Whether to show the element.
@@ -136,3 +145,36 @@ com.qwirx.ui.Renderer.prototype.setVisible =
  */
 com.qwirx.ui.Renderer.prototype.setFocusable =
 	goog.ui.ControlRenderer.prototype.setFocusable;
+
+/**
+ * Initializes the container's DOM when the container enters the document.
+ * Called from {@link goog.ui.Container#enterDocument}.
+ * Overridden to ensure that it behaves consistently with
+ * setAllowTextSelection() regarding the use of recursion in different
+ * browsers: 
+ * https://groups.google.com/forum/#!topic/closure-library-discuss/nTOHWfr3WTw
+ * @param {goog.ui.Container} container Container whose DOM is to be initialized
+ *     as it enters the document.
+ */
+com.qwirx.ui.Renderer.prototype.initializeDom = function(container)
+{
+	var elem = container.getElement();
+
+	// Make sure the container's element isn't selectable.
+	// changed here:
+	this.setAllowTextSelection(elem, false);
+
+	// IE doesn't support outline:none, so we have to use the hideFocus property.
+	if (goog.userAgent.IE)
+	{
+		elem.hideFocus = true;
+	}
+
+	// Set the ARIA role.
+	var ariaRole = this.getAriaRole();
+	if (ariaRole)
+	{
+		goog.dom.a11y.setRole(elem, ariaRole);
+	}
+};
+

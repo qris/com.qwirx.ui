@@ -44,7 +44,9 @@ function test_createDom()
 {
 	var bl = new com.qwirx.ui.BorderLayout();
 	var child1 = new goog.ui.Control("<h1>Hello!</h1>");
+	child1.setAllowTextSelection(true);
 	bl.addChild(child1, false);
+	
 	bl.createDom();
 	assertNotNull("child DOM element should have been created by " +
 		"calling createDom", child1.getElement());
@@ -54,6 +56,12 @@ function test_createDom()
 		"100%", elem.style.height);
 	assertEquals("BorderLayout should fill 100% of parent element",
 		"100%", elem.style.width);
+	
+	bl.render(domContainer);
+	var userSelect = goog.style.getComputedStyle(child1.getElement(),
+		'webkitUserSelect');
+	assertEquals("If webkitUserSelect is 'none' then controls in the " +
+		"BorderLayout won't be usable/editable", "text", userSelect);
 }
 
 function assert_one_child_in_center(bl, child)
