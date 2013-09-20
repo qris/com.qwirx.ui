@@ -534,8 +534,9 @@ com.qwirx.ui.TextField.Renderer.prototype.createDom = function(textfield) {
   var element = textfield.getDomHelper().createDom('input', {
     'type': 'text',
     'class': this.getClassNames(textfield).join(' '),
-    'disabled': !textfield.isEnabled()
-  }, textfield.getContent() || '');
+    'disabled': !textfield.isEnabled(),
+	'value': textfield.getContent() || '',
+  });
   return element;
 };
 
