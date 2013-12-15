@@ -599,6 +599,7 @@ com.qwirx.ui.BorderLayout.DefaultRenderer.prototype.applyStyle =
 	if (real_child)
 	{
 		elem.style.boxSizing = "border-box";
+		elem.style.overflow = "hidden";
 	}
 	
 	if (real_child && slot == slots.CENTER)

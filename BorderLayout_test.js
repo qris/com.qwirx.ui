@@ -93,6 +93,8 @@ function test_add_child_before_render()
 		"calling createDom (indirectly via render())", child1.getElement());
 	
 	assert_one_child_in_center(bl, child1);
+	assertEquals("border-box", child1.getElement().style.boxSizing);
+	assertEquals("hidden", child1.getElement().style.overflow);
 }
 
 function test_add_child_after_render()
@@ -109,6 +111,8 @@ function test_add_child_after_render()
 	assertObjectEquals([child1], bl.slots['CENTER']);
 	
 	assert_one_child_in_center(bl, child1);
+	assertEquals("border-box", child1.getElement().style.boxSizing);
+	assertEquals("hidden", child1.getElement().style.overflow);
 }
 
 function test_add_multiple_children_to_center_slot()
